@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wave Function Collapse</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1A0D00;
+    color: #DDC165;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: rgba(36, 18, 0, 0.95);
+    border-bottom: 1px solid rgba(221, 193, 101, 0.15);
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #FFE9A3;
+    text-shadow: 0 0 12px rgba(221, 193, 101, 0.4);
+  }
+
+  header .subtitle {
+    font-size: 11px;
+    color: rgba(221, 193, 101, 0.5);
+    margin-left: 12px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .control-group label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(221, 193, 101, 0.6);
+  }
+
+  select, button {
+    background: rgba(36, 18, 0, 0.8);
+    border: 1px solid rgba(221, 193, 101, 0.3);
+    color: #DDC165;
+    padding: 5px 10px;
+    font-family: inherit;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  select:hover, button:hover {
+    border-color: #DDC165;
+    box-shadow: 0 0 8px rgba(221, 193, 101, 0.2);
+  }
+
+  button.primary {
+    background: rgba(229, 89, 28, 0.3);
+    border-color: #E5591C;
+    color: #FFE9A3;
+  }
+
+  button.primary:hover {
+    background: rgba(229, 89, 28, 0.5);
+    box-shadow: 0 0 12px rgba(229, 89, 28, 0.3);
+  }
+
+  button.active {
+    background: rgba(221, 193, 101, 0.2);
+    border-color: #DDC165;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 80px;
+    height: 4px;
+    background: rgba(221, 193, 101, 0.2);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #DDC165;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(221, 193, 101, 0.4);
+  }
+
+  .main-area {
+    flex: 1;
+    display: flex;
+    position: relative;
+    overflow: hidden;
+  }
+
+  canvas {
+    display: block;
+    margin: auto;
+  }
+
+  .stats {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    font-size: 11px;
+    color: rgba(221, 193, 101, 0.5);
+    line-height: 1.6;
+    pointer-events: none;
+  }
+
+  .stats .value {
+    color: #DDC165;
+  }
+
+  .legend {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    font-size: 10px;
+    color: rgba(221, 193, 101, 0.5);
+    text-align: right;
+    line-height: 1.8;
+    pointer-events: none;
+  }
+
+  .legend .key {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  .status-bar {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: #FFE9A3;
+    text-shadow: 0 0 12px rgba(221, 193, 101, 0.6);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .status-bar.visible {
+    opacity: 1;
+  }
+
+  .help-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 13, 0, 0.92);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .help-overlay.visible {
+    display: flex;
+  }
+
+  .help-content {
+    max-width: 480px;
+    padding: 32px;
+    border: 1px solid rgba(221, 193, 101, 0.2);
+    border-radius: 8px;
+    background: rgba(36, 18, 0, 0.95);
+    line-height: 1.8;
+    font-size: 13px;
+  }
+
+  .help-content h2 {
+    font-size: 16px;
+    color: #FFE9A3;
+    margin-bottom: 16px;
+  }
+
+  .help-content kbd {
+    display: inline-block;
+    background: rgba(221, 193, 101, 0.15);
+    border: 1px solid rgba(221, 193, 101, 0.3);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-family: inherit;
+    color: #FFE9A3;
+  }
+
+  @media (max-width: 768px) {
+    header { flex-direction: column; gap: 8px; padding: 8px 12px; }
+    .controls { justify-content: center; }
+    .subtitle { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:baseline;">
+    <h1>Wave Function Collapse</h1>
+    <span class="subtitle">Constraint-based procedural generation</span>
+  </div>
+  <div class="controls">
+    <div class="control-group">
+      <label>Tileset</label>
+      <select id="tilesetSelect">
+        <option value="circuit">Circuit</option>
+        <option value="pipes">Pipes</option>
+        <option value="terrain">Terrain</option>
+        <option value="dungeon">Dungeon</option>
+        <option value="abstract">Abstract</option>
+        <option value="knot">Celtic Knot</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Grid</label>
+      <select id="gridSelect">
+        <option value="20">20×20</option>
+        <option value="30" selected>30×30</option>
+        <option value="40">40×40</option>
+        <option value="50">50×50</option>
+        <option value="60">60×60</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Speed</label>
+      <input type="range" id="speedSlider" min="1" max="50" value="10">
+    </div>
+    <button id="entropyBtn" title="Toggle entropy heatmap">Entropy</button>
+    <button class="primary" id="runBtn">▶ Generate</button>
+    <button id="stepBtn" title="Single step">Step</button>
+    <button id="exportBtn" title="Export PNG">PNG</button>
+    <button id="helpBtn">?</button>
+  </div>
+</header>
+
+<div class="main-area">
+  <canvas id="canvas"></canvas>
+  <div class="status-bar" id="statusBar"></div>
+  <div class="stats" id="stats"></div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<div class="help-overlay" id="helpOverlay">
+  <div class="help-content">
+    <h2>Wave Function Collapse</h2>
+    <p>WFC generates complex patterns from simple tile rules. Each cell starts with all possible tiles (superposition). The algorithm repeatedly:</p>
+    <p style="margin:8px 0 8px 16px; color:#E5591C;">1. Find the cell with lowest entropy<br>2. Collapse it to a single tile<br>3. Propagate constraints to neighbors</p>
+    <p style="margin-bottom:16px;">Watch as order emerges from chaos — one tile at a time.</p>
+    <p><kbd>Space</kbd> Generate &nbsp; <kbd>S</kbd> Step &nbsp; <kbd>E</kbd> Entropy &nbsp; <kbd>P</kbd> PNG<br>
+    <kbd>1-6</kbd> Tilesets &nbsp; <kbd>H</kbd> Help &nbsp; <kbd>Esc</kbd> Close</p>
+    <p style="margin-top:16px;font-size:11px;color:rgba(221,193,101,0.4);">Built by Ian Handy — ianhandy.com</p>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Wave Function Collapse — Full Implementation
+// ============================================================
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const statusBar = document.getElementById('statusBar');
+const statsEl = document.getElementById('stats');
+const legendEl = document.getElementById('legend');
+
+// --- Tile Definitions ---
+// Each tile has: id, edges [top, right, bottom, left] where edges are string codes
+// Matching rule: tile A's bottom edge must equal tile B's top edge (and vice versa for all directions)
+
+const TILESETS = {
+  circuit: {
+    name: 'Circuit',
+    tiles: [
+      { id: 'empty',    edges: ['0','0','0','0'], color: '#1A0D00', weight: 3 },
+      { id: 'wire_h',   edges: ['0','1','0','1'], color: '#2a1800', draw: 'wire_h', weight: 2 },
+      { id: 'wire_v',   edges: ['1','0','1','0'], color: '#2a1800', draw: 'wire_v', weight: 2 },
+      { id: 'corner_tr',edges: ['1','1','0','0'], color: '#2a1800', draw: 'corner_tr', weight: 1 },
+      { id: 'corner_br',edges: ['0','1','1','0'], color: '#2a1800', draw: 'corner_br', weight: 1 },
+      { id: 'corner_bl',edges: ['0','0','1','1'], color: '#2a1800', draw: 'corner_bl', weight: 1 },
+      { id: 'corner_tl',edges: ['1','0','0','1'], color: '#2a1800', draw: 'corner_tl', weight: 1 },
+      { id: 'cross',    edges: ['1','1','1','1'], color: '#2a1800', draw: 'cross', weight: 0.5 },
+      { id: 'tee_t',    edges: ['0','1','1','1'], color: '#2a1800', draw: 'tee_t', weight: 0.7 },
+      { id: 'tee_r',    edges: ['1','1','0','1'], color: '#2a1800', draw: 'tee_r', weight: 0.7 },
+      { id: 'tee_b',    edges: ['1','1','1','0'], color: '#2a1800', draw: 'tee_b', weight: 0.7 },
+      { id: 'tee_l',    edges: ['1','0','1','1'], color: '#2a1800', draw: 'tee_l', weight: 0.7 },
+      { id: 'node',     edges: ['1','1','1','1'], color: '#2a1800', draw: 'node', weight: 0.3 },
+    ]
+  },
+  pipes: {
+    name: 'Pipes',
+    tiles: [
+      { id: 'empty',    edges: ['0','0','0','0'], color: '#1A0D00', weight: 2 },
+      { id: 'pipe_h',   edges: ['0','p','0','p'], color: '#1e1000', draw: 'pipe_h', weight: 2 },
+      { id: 'pipe_v',   edges: ['p','0','p','0'], color: '#1e1000', draw: 'pipe_v', weight: 2 },
+      { id: 'elbow_tr', edges: ['p','p','0','0'], color: '#1e1000', draw: 'elbow_tr', weight: 1.5 },
+      { id: 'elbow_br', edges: ['0','p','p','0'], color: '#1e1000', draw: 'elbow_br', weight: 1.5 },
+      { id: 'elbow_bl', edges: ['0','0','p','p'], color: '#1e1000', draw: 'elbow_bl', weight: 1.5 },
+      { id: 'elbow_tl', edges: ['p','0','0','p'], color: '#1e1000', draw: 'elbow_tl', weight: 1.5 },
+      { id: 'cross',    edges: ['p','p','p','p'], color: '#1e1000', draw: 'pipe_cross', weight: 0.3 },
+      { id: 'tee_d',    edges: ['0','p','p','p'], color: '#1e1000', draw: 'pipe_tee_d', weight: 0.6 },
+      { id: 'tee_l',    edges: ['p','0','p','p'], color: '#1e1000', draw: 'pipe_tee_l', weight: 0.6 },
+      { id: 'tee_u',    edges: ['p','p','0','p'], color: '#1e1000', draw: 'pipe_tee_u', weight: 0.6 },
+      { id: 'tee_r',    edges: ['p','p','p','0'], color: '#1e1000', draw: 'pipe_tee_r', weight: 0.6 },
+      { id: 'valve',    edges: ['p','0','p','0'], color: '#1e1000', draw: 'valve', weight: 0.3 },
+    ]
+  },
+  terrain: {
+    name: 'Terrain',
+    tiles: [
+      { id: 'deep',     edges: ['w','w','w','w'], color: '#0a1520', weight: 2 },
+      { id: 'water',    edges: ['w','w','w','w'], color: '#12283a', weight: 3 },
+      { id: 'shore_t',  edges: ['g','s','w','s'], color: '#1a3a20', draw: 'shore_t', weight: 1 },
+      { id: 'shore_r',  edges: ['s','g','s','w'], color: '#1a3a20', draw: 'shore_r', weight: 1 },
+      { id: 'shore_b',  edges: ['w','s','g','s'], color: '#1a3a20', draw: 'shore_b', weight: 1 },
+      { id: 'shore_l',  edges: ['s','w','s','g'], color: '#1a3a20', draw: 'shore_l', weight: 1 },
+      { id: 'grass',    edges: ['g','g','g','g'], color: '#1a3a20', weight: 3 },
+      { id: 'hill',     edges: ['g','g','g','g'], color: '#2a4a20', draw: 'hill', weight: 1 },
+      { id: 'forest',   edges: ['g','g','g','g'], color: '#0d2a10', draw: 'forest', weight: 1.5 },
+      { id: 'corner_tr',edges: ['g','g','s','s'], color: '#1a3a20', draw: 'tcorner_tr', weight: 0.8 },
+      { id: 'corner_br',edges: ['s','g','g','s'], color: '#1a3a20', draw: 'tcorner_br', weight: 0.8 },
+      { id: 'corner_bl',edges: ['s','s','g','g'], color: '#1a3a20', draw: 'tcorner_bl', weight: 0.8 },
+      { id: 'corner_tl',edges: ['g','s','s','g'], color: '#1a3a20', draw: 'tcorner_tl', weight: 0.8 },
+    ]
+  },
+  dungeon: {
+    name: 'Dungeon',
+    tiles: [
+      { id: 'wall',     edges: ['w','w','w','w'], color: '#1a1215', weight: 4 },
+      { id: 'floor',    edges: ['f','f','f','f'], color: '#2a1800', weight: 2 },
+      { id: 'hall_h',   edges: ['w','d','w','d'], color: '#241200', draw: 'hall_h', weight: 1.5 },
+      { id: 'hall_v',   edges: ['d','w','d','w'], color: '#241200', draw: 'hall_v', weight: 1.5 },
+      { id: 'room_tr',  edges: ['d','f','f','d'], color: '#2a1800', draw: 'room_corner', weight: 0.8 },
+      { id: 'room_br',  edges: ['f','f','d','d'], color: '#2a1800', draw: 'room_corner', weight: 0.8 },
+      { id: 'room_bl',  edges: ['f','d','d','f'], color: '#2a1800', draw: 'room_corner', weight: 0.8 },
+      { id: 'room_tl',  edges: ['d','d','f','f'], color: '#2a1800', draw: 'room_corner', weight: 0.8 },
+      { id: 'door_t',   edges: ['w','d','f','d'], color: '#241200', draw: 'door_t', weight: 0.5 },
+      { id: 'door_r',   edges: ['d','w','d','f'], color: '#241200', draw: 'door_r', weight: 0.5 },
+      { id: 'door_b',   edges: ['f','d','w','d'], color: '#241200', draw: 'door_b', weight: 0.5 },
+      { id: 'door_l',   edges: ['d','f','d','w'], color: '#241200', draw: 'door_l', weight: 0.5 },
+    ]
+  },
+  abstract: {
+    name: 'Abstract',
+    tiles: [
+      { id: 'void',     edges: ['0','0','0','0'], color: '#1A0D00', weight: 2 },
+      { id: 'line_h',   edges: ['0','a','0','a'], color: '#1A0D00', draw: 'abs_line_h', weight: 2 },
+      { id: 'line_v',   edges: ['a','0','a','0'], color: '#1A0D00', draw: 'abs_line_v', weight: 2 },
+      { id: 'arc_tr',   edges: ['a','a','0','0'], color: '#1A0D00', draw: 'abs_arc_tr', weight: 1.5 },
+      { id: 'arc_br',   edges: ['0','a','a','0'], color: '#1A0D00', draw: 'abs_arc_br', weight: 1.5 },
+      { id: 'arc_bl',   edges: ['0','0','a','a'], color: '#1A0D00', draw: 'abs_arc_bl', weight: 1.5 },
+      { id: 'arc_tl',   edges: ['a','0','0','a'], color: '#1A0D00', draw: 'abs_arc_tl', weight: 1.5 },
+      { id: 'cross',    edges: ['a','a','a','a'], color: '#1A0D00', draw: 'abs_cross', weight: 0.4 },
+      { id: 'dot',      edges: ['0','0','0','0'], color: '#1A0D00', draw: 'abs_dot', weight: 0.5 },
+      { id: 'diamond',  edges: ['a','a','a','a'], color: '#1A0D00', draw: 'abs_diamond', weight: 0.3 },
+    ]
+  },
+  knot: {
+    name: 'Celtic Knot',
+    tiles: [
+      { id: 'empty',    edges: ['0','0','0','0'], color: '#1A0D00', weight: 1 },
+      { id: 'strand_h', edges: ['0','k','0','k'], color: '#1A0D00', draw: 'knot_h', weight: 2 },
+      { id: 'strand_v', edges: ['k','0','k','0'], color: '#1A0D00', draw: 'knot_v', weight: 2 },
+      { id: 'turn_tr',  edges: ['k','k','0','0'], color: '#1A0D00', draw: 'knot_tr', weight: 1.5 },
+      { id: 'turn_br',  edges: ['0','k','k','0'], color: '#1A0D00', draw: 'knot_br', weight: 1.5 },
+      { id: 'turn_bl',  edges: ['0','0','k','k'], color: '#1A0D00', draw: 'knot_bl', weight: 1.5 },
+      { id: 'turn_tl',  edges: ['k','0','0','k'], color: '#1A0D00', draw: 'knot_tl', weight: 1.5 },
+      { id: 'cross',    edges: ['k','k','k','k'], color: '#1A0D00', draw: 'knot_cross', weight: 0.8 },
+      { id: 'tee_d',    edges: ['0','k','k','k'], color: '#1A0D00', draw: 'knot_tee_d', weight: 0.6 },
+      { id: 'tee_l',    edges: ['k','0','k','k'], color: '#1A0D00', draw: 'knot_tee_l', weight: 0.6 },
+      { id: 'tee_u',    edges: ['k','k','0','k'], color: '#1A0D00', draw: 'knot_tee_u', weight: 0.6 },
+      { id: 'tee_r',    edges: ['k','k','k','0'], color: '#1A0D00', draw: 'knot_tee_r', weight: 0.6 },
+    ]
+  }
+};
+
+// --- Tile Drawing Functions ---
+const GOLD = '#DDC165';
+const BRIGHT_GOLD = '#FFE9A3';
+const ORANGE = '#E5591C';
+const DIM_GOLD = 'rgba(221, 193, 101, 0.3)';
+
+function drawTile(ctx, tile, x, y, s, tileset) {
+  // Background
+  ctx.fillStyle = tile.color;
+  ctx.fillRect(x, y, s, s);
+
+  const cx = x + s / 2;
+  const cy = y + s / 2;
+  const r = s * 0.15;
+  const lw = Math.max(1.5, s * 0.08);
+  const plw = Math.max(2, s * 0.12);
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  const d = tile.draw;
+  if (!d) return;
+
+  // Circuit tileset
+  if (d === 'wire_h') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + s, cy); ctx.stroke();
+    ctx.fillStyle = GOLD; ctx.globalAlpha = 0.3;
+    ctx.fillRect(x, cy - lw, s, lw * 2); ctx.globalAlpha = 1;
+  } else if (d === 'wire_v') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx, y + s); ctx.stroke();
+    ctx.fillStyle = GOLD; ctx.globalAlpha = 0.3;
+    ctx.fillRect(cx - lw, y, lw * 2, s); ctx.globalAlpha = 1;
+  } else if (d === 'corner_tr') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.quadraticCurveTo(cx, cy, x + s, cy); ctx.stroke();
+  } else if (d === 'corner_br') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(x + s, cy); ctx.quadraticCurveTo(cx, cy, cx, y + s); ctx.stroke();
+  } else if (d === 'corner_bl') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(cx, y + s); ctx.quadraticCurveTo(cx, cy, x, cy); ctx.stroke();
+  } else if (d === 'corner_tl') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(x, cy); ctx.quadraticCurveTo(cx, cy, cx, y); ctx.stroke();
+  } else if (d === 'cross') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + s, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx, y + s); ctx.stroke();
+    ctx.fillStyle = BRIGHT_GOLD;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2); ctx.fill();
+  } else if (d === 'tee_t') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + s, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, y + s); ctx.stroke();
+  } else if (d === 'tee_r') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx, y + s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(cx, cy); ctx.stroke();
+  } else if (d === 'tee_b') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + s, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx, cy); ctx.stroke();
+  } else if (d === 'tee_l') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx, y + s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x + s, cy); ctx.stroke();
+  } else if (d === 'node') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + s, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx, y + s); ctx.stroke();
+    // Glowing node
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 2);
+    grad.addColorStop(0, ORANGE);
+    grad.addColorStop(0.5, 'rgba(229, 89, 28, 0.4)');
+    grad.addColorStop(1, 'rgba(229, 89, 28, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = ORANGE;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.7, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Pipe tileset
+  else if (d === 'pipe_h') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = plw;
+    ctx.beginPath(); ctx.moveTo(x, cy - plw * 0.5); ctx.lineTo(x + s, cy - plw * 0.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, cy + plw * 0.5); ctx.lineTo(x + s, cy + plw * 0.5); ctx.stroke();
+    ctx.strokeStyle = DIM_GOLD; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + s, cy); ctx.stroke();
+  } else if (d === 'pipe_v') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = plw;
+    ctx.beginPath(); ctx.moveTo(cx - plw * 0.5, y); ctx.lineTo(cx - plw * 0.5, y + s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + plw * 0.5, y); ctx.lineTo(cx + plw * 0.5, y + s); ctx.stroke();
+    ctx.strokeStyle = DIM_GOLD; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx, y + s); ctx.stroke();
+  } else if (d.startsWith('elbow_')) {
+    const dir = d.replace('elbow_', '');
+    ctx.strokeStyle = GOLD; ctx.lineWidth = plw;
+    const pw = plw * 0.5;
+    if (dir === 'tr') {
+      ctx.beginPath(); ctx.arc(x + s, y, s / 2 - pw, Math.PI * 0.5, Math.PI); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + s, y, s / 2 + pw, Math.PI * 0.5, Math.PI); ctx.stroke();
+    } else if (dir === 'br') {
+      ctx.beginPath(); ctx.arc(x + s, y + s, s / 2 - pw, Math.PI, Math.PI * 1.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + s, y + s, s / 2 + pw, Math.PI, Math.PI * 1.5); ctx.stroke();
+    } else if (dir === 'bl') {
+      ctx.beginPath(); ctx.arc(x, y + s, s / 2 - pw, Math.PI * 1.5, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y + s, s / 2 + pw, Math.PI * 1.5, Math.PI * 2); ctx.stroke();
+    } else if (dir === 'tl') {
+      ctx.beginPath(); ctx.arc(x, y, s / 2 - pw, 0, Math.PI * 0.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, s / 2 + pw, 0, Math.PI * 0.5); ctx.stroke();
+    }
+  } else if (d === 'pipe_cross') {
+    drawTile(ctx, { ...tile, draw: 'pipe_h' }, x, y, s, tileset);
+    drawTile(ctx, { ...tile, draw: 'pipe_v' }, x, y, s, tileset);
+    ctx.fillStyle = ORANGE;
+    ctx.beginPath(); ctx.arc(cx, cy, plw * 0.8, 0, Math.PI * 2); ctx.fill();
+  } else if (d.startsWith('pipe_tee_')) {
+    const dir = d.replace('pipe_tee_', '');
+    if (dir === 'd' || dir === 'u') {
+      drawTile(ctx, { ...tile, draw: 'pipe_h' }, x, y, s, tileset);
+      ctx.strokeStyle = GOLD; ctx.lineWidth = plw;
+      if (dir === 'd') {
+        ctx.beginPath(); ctx.moveTo(cx - plw * 0.5, cy); ctx.lineTo(cx - plw * 0.5, y + s); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx + plw * 0.5, cy); ctx.lineTo(cx + plw * 0.5, y + s); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.moveTo(cx - plw * 0.5, y); ctx.lineTo(cx - plw * 0.5, cy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx + plw * 0.5, y); ctx.lineTo(cx + plw * 0.5, cy); ctx.stroke();
+      }
+    } else {
+      drawTile(ctx, { ...tile, draw: 'pipe_v' }, x, y, s, tileset);
+      ctx.strokeStyle = GOLD; ctx.lineWidth = plw;
+      if (dir === 'r') {
+        ctx.beginPath(); ctx.moveTo(cx, cy - plw * 0.5); ctx.lineTo(x + s, cy - plw * 0.5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy + plw * 0.5); ctx.lineTo(x + s, cy + plw * 0.5); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.moveTo(x, cy - plw * 0.5); ctx.lineTo(cx, cy - plw * 0.5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, cy + plw * 0.5); ctx.lineTo(cx, cy + plw * 0.5); ctx.stroke();
+      }
+    }
+  } else if (d === 'valve') {
+    drawTile(ctx, { ...tile, draw: 'pipe_v' }, x, y, s, tileset);
+    ctx.fillStyle = ORANGE;
+    ctx.fillRect(cx - plw * 1.2, cy - plw * 0.4, plw * 2.4, plw * 0.8);
+    ctx.strokeStyle = ORANGE; ctx.lineWidth = 1;
+    ctx.strokeRect(cx - plw * 1.2, cy - plw * 0.4, plw * 2.4, plw * 0.8);
+  }
+
+  // Terrain tileset
+  else if (d === 'shore_t') {
+    const grad = ctx.createLinearGradient(x, y, x, y + s);
+    grad.addColorStop(0, '#1a3a20'); grad.addColorStop(0.5, '#1a3a20');
+    grad.addColorStop(0.6, '#1a3040'); grad.addColorStop(1, '#12283a');
+    ctx.fillStyle = grad; ctx.fillRect(x, y, s, s);
+    ctx.strokeStyle = 'rgba(180, 200, 150, 0.3)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < s; i += 4) {
+      ctx.moveTo(x + i, y + s * 0.5 + Math.sin(i * 0.3) * 3);
+      ctx.lineTo(x + i + 2, y + s * 0.5 + Math.sin((i + 2) * 0.3) * 3);
+    }
+    ctx.stroke();
+  } else if (d === 'shore_r') {
+    const grad = ctx.createLinearGradient(x, y, x + s, y);
+    grad.addColorStop(0, '#12283a'); grad.addColorStop(0.4, '#1a3040');
+    grad.addColorStop(0.5, '#1a3a20'); grad.addColorStop(1, '#1a3a20');
+    ctx.fillStyle = grad; ctx.fillRect(x, y, s, s);
+  } else if (d === 'shore_b') {
+    const grad = ctx.createLinearGradient(x, y, x, y + s);
+    grad.addColorStop(0, '#12283a'); grad.addColorStop(0.4, '#1a3040');
+    grad.addColorStop(0.5, '#1a3a20'); grad.addColorStop(1, '#1a3a20');
+    ctx.fillStyle = grad; ctx.fillRect(x, y, s, s);
+  } else if (d === 'shore_l') {
+    const grad = ctx.createLinearGradient(x, y, x + s, y);
+    grad.addColorStop(0, '#1a3a20'); grad.addColorStop(0.5, '#1a3a20');
+    grad.addColorStop(0.6, '#1a3040'); grad.addColorStop(1, '#12283a');
+    ctx.fillStyle = grad; ctx.fillRect(x, y, s, s);
+  } else if (d === 'hill') {
+    ctx.fillStyle = '#2a5020'; ctx.globalAlpha = 0.6;
+    ctx.beginPath(); ctx.arc(cx, cy + s * 0.15, s * 0.3, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#3a6030'; ctx.globalAlpha = 0.4;
+    ctx.beginPath(); ctx.arc(cx - s * 0.15, cy + s * 0.2, s * 0.2, Math.PI, 0); ctx.fill();
+    ctx.globalAlpha = 1;
+  } else if (d === 'forest') {
+    for (let i = 0; i < 3; i++) {
+      const tx = cx + (i - 1) * s * 0.25;
+      const ty = cy + (i === 1 ? -s * 0.1 : s * 0.05);
+      ctx.fillStyle = i === 1 ? '#0d3a10' : '#0a2a0d';
+      ctx.beginPath();
+      ctx.moveTo(tx, ty - s * 0.2);
+      ctx.lineTo(tx + s * 0.12, ty + s * 0.1);
+      ctx.lineTo(tx - s * 0.12, ty + s * 0.1);
+      ctx.fill();
+    }
+  } else if (d.startsWith('tcorner_')) {
+    const dir = d.replace('tcorner_', '');
+    const grad = ctx.createRadialGradient(
+      dir.includes('r') ? x + s : x, dir.includes('b') ? y + s : y, 0,
+      dir.includes('r') ? x + s : x, dir.includes('b') ? y + s : y, s * 1.2
+    );
+    grad.addColorStop(0, '#1a3a20'); grad.addColorStop(0.4, '#1a3040'); grad.addColorStop(1, '#12283a');
+    ctx.fillStyle = grad; ctx.fillRect(x, y, s, s);
+  }
+
+  // Dungeon tileset
+  else if (d === 'hall_h') {
+    const wallH = s * 0.25;
+    ctx.fillStyle = '#1a1215';
+    ctx.fillRect(x, y, s, wallH);
+    ctx.fillRect(x, y + s - wallH, s, wallH);
+    ctx.fillStyle = '#2a1800';
+    ctx.fillRect(x, y + wallH, s, s - wallH * 2);
+    // Floor detail
+    ctx.strokeStyle = 'rgba(221, 193, 101, 0.08)'; ctx.lineWidth = 0.5;
+    for (let i = 0; i < s; i += s / 4) {
+      ctx.beginPath(); ctx.moveTo(x + i, y + wallH); ctx.lineTo(x + i, y + s - wallH); ctx.stroke();
+    }
+  } else if (d === 'hall_v') {
+    const wallW = s * 0.25;
+    ctx.fillStyle = '#1a1215';
+    ctx.fillRect(x, y, wallW, s);
+    ctx.fillRect(x + s - wallW, y, wallW, s);
+    ctx.fillStyle = '#2a1800';
+    ctx.fillRect(x + wallW, y, s - wallW * 2, s);
+    ctx.strokeStyle = 'rgba(221, 193, 101, 0.08)'; ctx.lineWidth = 0.5;
+    for (let i = 0; i < s; i += s / 4) {
+      ctx.beginPath(); ctx.moveTo(x + wallW, y + i); ctx.lineTo(x + s - wallW, y + i); ctx.stroke();
+    }
+  } else if (d === 'room_corner') {
+    ctx.strokeStyle = 'rgba(221, 193, 101, 0.06)'; ctx.lineWidth = 0.5;
+    for (let i = 0; i < s; i += s / 4) {
+      ctx.beginPath(); ctx.moveTo(x + i, y); ctx.lineTo(x + i, y + s); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y + i); ctx.lineTo(x + s, y + i); ctx.stroke();
+    }
+  } else if (d.startsWith('door_')) {
+    const dir = d.replace('door_', '');
+    const wallH = s * 0.25;
+    ctx.fillStyle = '#1a1215'; ctx.fillRect(x, y, s, s);
+    // Door opening
+    ctx.fillStyle = '#2a1800';
+    if (dir === 't') {
+      ctx.fillRect(x + wallH, y, s - wallH * 2, s);
+      ctx.fillStyle = ORANGE; ctx.globalAlpha = 0.3;
+      ctx.fillRect(x + s * 0.35, y + s * 0.7, s * 0.3, s * 0.06);
+      ctx.globalAlpha = 1;
+    } else if (dir === 'b') {
+      ctx.fillRect(x + wallH, y, s - wallH * 2, s);
+      ctx.fillStyle = ORANGE; ctx.globalAlpha = 0.3;
+      ctx.fillRect(x + s * 0.35, y + s * 0.24, s * 0.3, s * 0.06);
+      ctx.globalAlpha = 1;
+    } else if (dir === 'r') {
+      ctx.fillRect(x, y + wallH, s, s - wallH * 2);
+      ctx.fillStyle = ORANGE; ctx.globalAlpha = 0.3;
+      ctx.fillRect(x + s * 0.24, y + s * 0.35, s * 0.06, s * 0.3);
+      ctx.globalAlpha = 1;
+    } else if (dir === 'l') {
+      ctx.fillRect(x, y + wallH, s, s - wallH * 2);
+      ctx.fillStyle = ORANGE; ctx.globalAlpha = 0.3;
+      ctx.fillRect(x + s * 0.7, y + s * 0.35, s * 0.06, s * 0.3);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Abstract tileset
+  else if (d === 'abs_line_h') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw * 1.5;
+    ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + s, cy); ctx.stroke();
+    ctx.strokeStyle = BRIGHT_GOLD; ctx.lineWidth = lw * 0.5; ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + s, cy); ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else if (d === 'abs_line_v') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw * 1.5;
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx, y + s); ctx.stroke();
+    ctx.strokeStyle = BRIGHT_GOLD; ctx.lineWidth = lw * 0.5; ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx, y + s); ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else if (d === 'abs_arc_tr') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw * 1.5;
+    ctx.beginPath(); ctx.arc(x + s, y, s / 2, Math.PI * 0.5, Math.PI); ctx.stroke();
+  } else if (d === 'abs_arc_br') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw * 1.5;
+    ctx.beginPath(); ctx.arc(x + s, y + s, s / 2, Math.PI, Math.PI * 1.5); ctx.stroke();
+  } else if (d === 'abs_arc_bl') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw * 1.5;
+    ctx.beginPath(); ctx.arc(x, y + s, s / 2, Math.PI * 1.5, Math.PI * 2); ctx.stroke();
+  } else if (d === 'abs_arc_tl') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw * 1.5;
+    ctx.beginPath(); ctx.arc(x, y, s / 2, 0, Math.PI * 0.5); ctx.stroke();
+  } else if (d === 'abs_cross') {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = lw * 1.5;
+    ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + s, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx, y + s); ctx.stroke();
+    // Glow center
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.25);
+    g.addColorStop(0, 'rgba(255, 233, 163, 0.4)');
+    g.addColorStop(1, 'rgba(255, 233, 163, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, s * 0.25, 0, Math.PI * 2); ctx.fill();
+  } else if (d === 'abs_dot') {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.2);
+    g.addColorStop(0, BRIGHT_GOLD);
+    g.addColorStop(0.4, GOLD);
+    g.addColorStop(1, 'rgba(221, 193, 101, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, s * 0.2, 0, Math.PI * 2); ctx.fill();
+  } else if (d === 'abs_diamond') {
+    ctx.strokeStyle = ORANGE; ctx.lineWidth = lw * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx, y + s * 0.15); ctx.lineTo(x + s * 0.85, cy);
+    ctx.lineTo(cx, y + s * 0.85); ctx.lineTo(x + s * 0.15, cy);
+    ctx.closePath(); ctx.stroke();
+    ctx.fillStyle = 'rgba(229, 89, 28, 0.15)'; ctx.fill();
+  }
+
+  // Celtic Knot tileset
+  else if (d === 'knot_h') {
+    const kw = plw * 1.2;
+    const off = kw * 0.6;
+    ctx.strokeStyle = GOLD; ctx.lineWidth = kw;
+    ctx.beginPath(); ctx.moveTo(x, cy - off); ctx.lineTo(x + s, cy - off); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, cy + off); ctx.lineTo(x + s, cy + off); ctx.stroke();
+    ctx.strokeStyle = BRIGHT_GOLD; ctx.lineWidth = kw * 0.3; ctx.globalAlpha = 0.4;
+    ctx.beginPath(); ctx.moveTo(x, cy - off); ctx.lineTo(x + s, cy - off); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, cy + off); ctx.lineTo(x + s, cy + off); ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else if (d === 'knot_v') {
+    const kw = plw * 1.2;
+    const off = kw * 0.6;
+    ctx.strokeStyle = GOLD; ctx.lineWidth = kw;
+    ctx.beginPath(); ctx.moveTo(cx - off, y); ctx.lineTo(cx - off, y + s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + off, y); ctx.lineTo(cx + off, y + s); ctx.stroke();
+    ctx.strokeStyle = BRIGHT_GOLD; ctx.lineWidth = kw * 0.3; ctx.globalAlpha = 0.4;
+    ctx.beginPath(); ctx.moveTo(cx - off, y); ctx.lineTo(cx - off, y + s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + off, y); ctx.lineTo(cx + off, y + s); ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else if (d.startsWith('knot_t')) {
+    // Turns and tees
+    const dir = d.replace('knot_', '');
+    const kw = plw * 1.2;
+    const off = kw * 0.6;
+    ctx.strokeStyle = GOLD; ctx.lineWidth = kw;
+
+    if (dir === 'tr') {
+      ctx.beginPath(); ctx.arc(x + s, y, s / 2 - off, Math.PI * 0.5, Math.PI); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + s, y, s / 2 + off, Math.PI * 0.5, Math.PI); ctx.stroke();
+    } else if (dir === 'br') {
+      ctx.beginPath(); ctx.arc(x + s, y + s, s / 2 - off, Math.PI, Math.PI * 1.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + s, y + s, s / 2 + off, Math.PI, Math.PI * 1.5); ctx.stroke();
+    } else if (dir === 'bl') {
+      ctx.beginPath(); ctx.arc(x, y + s, s / 2 - off, Math.PI * 1.5, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y + s, s / 2 + off, Math.PI * 1.5, Math.PI * 2); ctx.stroke();
+    } else if (dir === 'tl') {
+      ctx.beginPath(); ctx.arc(x, y, s / 2 - off, 0, Math.PI * 0.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, s / 2 + off, 0, Math.PI * 0.5); ctx.stroke();
+    } else if (dir === 'tee_d' || dir === 'tee_u' || dir === 'tee_l' || dir === 'tee_r') {
+      // Draw as cross-like with three arms
+      drawTile(ctx, { ...tile, draw: 'knot_cross' }, x, y, s, tileset);
+    }
+  } else if (d === 'knot_cross') {
+    const kw = plw * 1.2;
+    const off = kw * 0.6;
+    // Vertical over horizontal (weave effect)
+    ctx.strokeStyle = GOLD; ctx.lineWidth = kw;
+    ctx.beginPath(); ctx.moveTo(x, cy - off); ctx.lineTo(cx - off * 2, cy - off); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, cy + off); ctx.lineTo(cx - off * 2, cy + off); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + off * 2, cy - off); ctx.lineTo(x + s, cy - off); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + off * 2, cy + off); ctx.lineTo(x + s, cy + off); ctx.stroke();
+    // Vertical strands (on top)
+    ctx.strokeStyle = BRIGHT_GOLD; ctx.lineWidth = kw;
+    ctx.beginPath(); ctx.moveTo(cx - off, y); ctx.lineTo(cx - off, y + s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + off, y); ctx.lineTo(cx + off, y + s); ctx.stroke();
+    // Highlight
+    ctx.strokeStyle = '#FFE9A3'; ctx.lineWidth = kw * 0.25; ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.moveTo(cx - off, y); ctx.lineTo(cx - off, y + s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + off, y); ctx.lineTo(cx + off, y + s); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+// --- WFC Algorithm ---
+
+class WFC {
+  constructor(width, height, tileset) {
+    this.width = width;
+    this.height = height;
+    this.tiles = tileset.tiles;
+    this.numTiles = this.tiles.length;
+
+    // Each cell has a Set of possible tile indices
+    this.grid = new Array(width * height);
+    this.collapsed = new Array(width * height).fill(false);
+    this.result = new Array(width * height).fill(-1);
+    this.collapseOrder = [];
+    this.steps = 0;
+    this.done = false;
+    this.contradiction = false;
+
+    // Initialize all cells with all possibilities
+    for (let i = 0; i < this.grid.length; i++) {
+      this.grid[i] = new Set();
+      for (let t = 0; t < this.numTiles; t++) {
+        this.grid[i].add(t);
+      }
+    }
+
+    // Precompute adjacency compatibility
+    // compatible[dir][tileA] = Set of tiles that can be in direction dir from tileA
+    // dir: 0=top, 1=right, 2=bottom, 3=left
+    this.compatible = [new Map(), new Map(), new Map(), new Map()];
+    const opposite = [2, 3, 0, 1]; // opposite edge indices
+
+    for (let a = 0; a < this.numTiles; a++) {
+      for (let dir = 0; dir < 4; dir++) {
+        const set = new Set();
+        const edgeA = this.tiles[a].edges[dir];
+        for (let b = 0; b < this.numTiles; b++) {
+          const edgeB = this.tiles[b].edges[opposite[dir]];
+          if (edgeA === edgeB) set.add(b);
+        }
+        this.compatible[dir].set(a, set);
+      }
+    }
+  }
+
+  entropy(i) {
+    if (this.collapsed[i]) return Infinity;
+    const possible = this.grid[i];
+    if (possible.size <= 1) return possible.size === 0 ? -1 : 0;
+
+    // Shannon entropy with weights
+    let sumW = 0, sumWLogW = 0;
+    for (const t of possible) {
+      const w = this.tiles[t].weight || 1;
+      sumW += w;
+      sumWLogW += w * Math.log(w);
+    }
+    return Math.log(sumW) - sumWLogW / sumW + Math.random() * 0.001; // tiny noise for tie-breaking
+  }
+
+  findMinEntropy() {
+    let minE = Infinity;
+    let minI = -1;
+    for (let i = 0; i < this.grid.length; i++) {
+      if (this.collapsed[i]) continue;
+      const e = this.entropy(i);
+      if (e < 0) return -2; // contradiction
+      if (e < minE) { minE = e; minI = i; }
+    }
+    return minI;
+  }
+
+  collapse(i) {
+    const possible = this.grid[i];
+    if (possible.size === 0) { this.contradiction = true; return; }
+
+    // Weighted random selection
+    let totalWeight = 0;
+    for (const t of possible) totalWeight += (this.tiles[t].weight || 1);
+    let r = Math.random() * totalWeight;
+    let chosen = 0;
+    for (const t of possible) {
+      r -= (this.tiles[t].weight || 1);
+      if (r <= 0) { chosen = t; break; }
+    }
+
+    this.grid[i] = new Set([chosen]);
+    this.collapsed[i] = true;
+    this.result[i] = chosen;
+    this.collapseOrder.push(i);
+    this.steps++;
+  }
+
+  propagate(startI) {
+    const stack = [startI];
+    const dx = [0, 1, 0, -1];
+    const dy = [-1, 0, 1, 0];
+
+    while (stack.length > 0) {
+      const i = stack.pop();
+      const ix = i % this.width;
+      const iy = Math.floor(i / this.width);
+
+      for (let dir = 0; dir < 4; dir++) {
+        const nx = ix + dx[dir];
+        const ny = iy + dy[dir];
+        if (nx < 0 || nx >= this.width || ny < 0 || ny >= this.height) continue;
+        const ni = ny * this.width + nx;
+        if (this.collapsed[ni]) continue;
+
+        const neighborPossible = this.grid[ni];
+        const allowed = new Set();
+
+        for (const myTile of this.grid[i]) {
+          const compat = this.compatible[dir].get(myTile);
+          for (const t of compat) {
+            if (neighborPossible.has(t)) allowed.add(t);
+          }
+        }
+
+        if (allowed.size < neighborPossible.size) {
+          if (allowed.size === 0) {
+            this.contradiction = true;
+            return;
+          }
+          this.grid[ni] = allowed;
+          stack.push(ni);
+        }
+      }
+    }
+  }
+
+  step() {
+    if (this.done || this.contradiction) return false;
+
+    const i = this.findMinEntropy();
+    if (i === -1) { this.done = true; return false; }
+    if (i === -2) { this.contradiction = true; return false; }
+
+    this.collapse(i);
+    this.propagate(i);
+    return true;
+  }
+
+  getEntropies() {
+    const ent = new Float32Array(this.grid.length);
+    let maxE = 0;
+    for (let i = 0; i < this.grid.length; i++) {
+      if (this.collapsed[i]) { ent[i] = 0; continue; }
+      ent[i] = this.grid[i].size;
+      if (ent[i] > maxE) maxE = ent[i];
+    }
+    // Normalize
+    if (maxE > 0) for (let i = 0; i < ent.length; i++) ent[i] /= maxE;
+    return ent;
+  }
+
+  collapsedCount() {
+    return this.collapseOrder.length;
+  }
+
+  totalCells() {
+    return this.width * this.height;
+  }
+}
+
+// --- App State ---
+let wfc = null;
+let currentTileset = 'circuit';
+let gridSize = 30;
+let speed = 10; // steps per frame
+let running = false;
+let showEntropy = false;
+let animId = null;
+let cellSize = 10;
+let offsetX = 0, offsetY = 0;
+
+function resizeCanvas() {
+  const area = document.querySelector('.main-area');
+  const w = area.clientWidth;
+  const h = area.clientHeight;
+  canvas.width = w * devicePixelRatio;
+  canvas.height = h * devicePixelRatio;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+
+  // Calculate cell size to fit grid with padding
+  const pad = 40;
+  cellSize = Math.floor(Math.min((w - pad * 2) / gridSize, (h - pad * 2) / gridSize));
+  cellSize = Math.max(cellSize, 4);
+  offsetX = Math.floor((w - cellSize * gridSize) / 2);
+  offsetY = Math.floor((h - cellSize * gridSize) / 2);
+}
+
+function initWFC() {
+  wfc = new WFC(gridSize, gridSize, TILESETS[currentTileset]);
+  running = false;
+  updateStats();
+  render();
+}
+
+function render() {
+  const w = canvas.width / devicePixelRatio;
+  const h = canvas.height / devicePixelRatio;
+
+  // Clear
+  ctx.fillStyle = '#1A0D00';
+  ctx.fillRect(0, 0, w, h);
+
+  if (!wfc) return;
+
+  const tileset = TILESETS[currentTileset];
+  const s = cellSize;
+  const entropies = showEntropy ? wfc.getEntropies() : null;
+
+  for (let y = 0; y < gridSize; y++) {
+    for (let x = 0; x < gridSize; x++) {
+      const i = y * gridSize + x;
+      const px = offsetX + x * s;
+      const py = offsetY + y * s;
+
+      if (wfc.collapsed[i]) {
+        const tileIdx = wfc.result[i];
+        const tile = tileset.tiles[tileIdx];
+        drawTile(ctx, tile, px, py, s, tileset);
+
+        // Recently collapsed glow — wave front effect
+        const orderIdx = wfc.collapseOrder.indexOf(i);
+        const recency = wfc.collapseOrder.length - orderIdx;
+        if (recency <= 8 && !wfc.done) {
+          const alpha = Math.max(0, 0.35 - recency * 0.04);
+          ctx.fillStyle = `rgba(229, 89, 28, ${alpha})`;
+          ctx.fillRect(px, py, s, s);
+          if (recency === 1) {
+            // Bright pulse on the very latest collapse
+            ctx.shadowColor = '#E5591C';
+            ctx.shadowBlur = s * 0.5;
+            ctx.fillStyle = 'rgba(229, 89, 28, 0.25)';
+            ctx.fillRect(px + 1, py + 1, s - 2, s - 2);
+            ctx.shadowBlur = 0;
+          }
+        }
+      } else {
+        // Uncollapsed cell — show superposition
+        const possible = wfc.grid[i];
+        const ratio = possible.size / wfc.numTiles;
+        const constrainedRatio = 1 - ratio; // 0 = unconstrained, 1 = nearly collapsed
+
+        if (showEntropy && entropies) {
+          const e = entropies[i];
+          const r = Math.floor(229 * e + 26 * (1 - e));
+          const g = Math.floor(89 * e + 13 * (1 - e));
+          const b = Math.floor(28 * e);
+          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.4)`;
+          ctx.fillRect(px, py, s, s);
+        } else {
+          // More constrained cells glow brighter
+          ctx.fillStyle = `rgba(221, 193, 101, ${0.015 + constrainedRatio * 0.12})`;
+          ctx.fillRect(px, py, s, s);
+          // Highly constrained cells get orange tint
+          if (constrainedRatio > 0.6) {
+            ctx.fillStyle = `rgba(229, 89, 28, ${(constrainedRatio - 0.6) * 0.25})`;
+            ctx.fillRect(px, py, s, s);
+          }
+        }
+
+        // Small text showing count
+        if (s >= 14 && possible.size < wfc.numTiles) {
+          ctx.fillStyle = `rgba(221, 193, 101, ${0.15 + constrainedRatio * 0.5})`;
+          ctx.font = `${Math.max(7, s * 0.28)}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(possible.size, px + s / 2, py + s / 2);
+        }
+      }
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(221, 193, 101, 0.04)';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(px, py, s, s);
+    }
+  }
+
+  // Grid border glow
+  const gridW = gridSize * s;
+  const gridH = gridSize * s;
+  ctx.shadowColor = 'rgba(221, 193, 101, 0.3)';
+  ctx.shadowBlur = 20;
+  ctx.strokeStyle = 'rgba(221, 193, 101, 0.15)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(offsetX - 1, offsetY - 1, gridW + 2, gridH + 2);
+  ctx.shadowBlur = 0;
+
+  // Vignette
+  const vignette = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.7);
+  vignette.addColorStop(0, 'rgba(26, 13, 0, 0)');
+  vignette.addColorStop(1, 'rgba(26, 13, 0, 0.5)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, w, h);
+
+  // Contradiction indicator
+  if (wfc.contradiction) {
+    ctx.fillStyle = 'rgba(229, 89, 28, 0.1)';
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  updateStats();
+}
+
+function updateStats() {
+  if (!wfc) { statsEl.textContent = ''; return; }
+  const pct = Math.floor(wfc.collapsedCount() / wfc.totalCells() * 100);
+  statsEl.innerHTML = `Collapsed: <span class="value">${wfc.collapsedCount()}/${wfc.totalCells()}</span> (<span class="value">${pct}%</span>)<br>Steps: <span class="value">${wfc.steps}</span>${wfc.contradiction ? '<br><span style="color:#E5591C">CONTRADICTION — regenerating...</span>' : ''}${wfc.done ? '<br><span style="color:#FFE9A3">COMPLETE</span>' : ''}`;
+}
+
+function showStatus(msg) {
+  statusBar.textContent = msg;
+  statusBar.classList.add('visible');
+  setTimeout(() => statusBar.classList.remove('visible'), 2000);
+}
+
+function animationLoop() {
+  if (!running || !wfc) return;
+
+  let stepped = false;
+  for (let i = 0; i < speed; i++) {
+    if (!wfc.step()) {
+      if (wfc.contradiction) {
+        // Auto-retry on contradiction
+        wfc = new WFC(gridSize, gridSize, TILESETS[currentTileset]);
+        showStatus('Contradiction — retrying...');
+      } else {
+        running = false;
+        showStatus('Generation complete');
+      }
+      break;
+    }
+    stepped = true;
+  }
+
+  render();
+
+  if (running) {
+    animId = requestAnimationFrame(animationLoop);
+  }
+}
+
+function startGeneration() {
+  initWFC();
+  running = true;
+  showStatus('Generating...');
+  runBtn.textContent = '⏸ Pause';
+  animationLoop();
+}
+
+function toggleRun() {
+  if (!wfc || wfc.done) {
+    startGeneration();
+  } else if (running) {
+    running = false;
+    runBtn.textContent = '▶ Resume';
+    showStatus('Paused');
+  } else {
+    running = true;
+    runBtn.textContent = '⏸ Pause';
+    showStatus('Resumed');
+    animationLoop();
+  }
+}
+
+function singleStep() {
+  if (!wfc) initWFC();
+  if (wfc.done) initWFC();
+  running = false;
+  runBtn.textContent = '▶ Resume';
+
+  if (wfc.step()) {
+    render();
+  } else if (wfc.contradiction) {
+    wfc = new WFC(gridSize, gridSize, TILESETS[currentTileset]);
+    showStatus('Contradiction — reset');
+    render();
+  } else {
+    showStatus('Complete');
+    render();
+  }
+}
+
+function exportPNG() {
+  const link = document.createElement('a');
+  link.download = `wfc-${currentTileset}-${gridSize}x${gridSize}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showStatus('PNG exported');
+}
+
+// --- Event Listeners ---
+const runBtn = document.getElementById('runBtn');
+const stepBtn = document.getElementById('stepBtn');
+const entropyBtn = document.getElementById('entropyBtn');
+const exportBtn = document.getElementById('exportBtn');
+const helpBtn = document.getElementById('helpBtn');
+const helpOverlay = document.getElementById('helpOverlay');
+const tilesetSelect = document.getElementById('tilesetSelect');
+const gridSelect = document.getElementById('gridSelect');
+const speedSlider = document.getElementById('speedSlider');
+
+runBtn.addEventListener('click', toggleRun);
+stepBtn.addEventListener('click', singleStep);
+
+entropyBtn.addEventListener('click', () => {
+  showEntropy = !showEntropy;
+  entropyBtn.classList.toggle('active', showEntropy);
+  render();
+});
+
+exportBtn.addEventListener('click', exportPNG);
+
+helpBtn.addEventListener('click', () => helpOverlay.classList.toggle('visible'));
+helpOverlay.addEventListener('click', (e) => {
+  if (e.target === helpOverlay) helpOverlay.classList.remove('visible');
+});
+
+tilesetSelect.addEventListener('change', () => {
+  currentTileset = tilesetSelect.value;
+  running = false;
+  runBtn.textContent = '▶ Generate';
+  initWFC();
+  updateLegend();
+});
+
+gridSelect.addEventListener('change', () => {
+  gridSize = parseInt(gridSelect.value);
+  resizeCanvas();
+  running = false;
+  runBtn.textContent = '▶ Generate';
+  initWFC();
+});
+
+speedSlider.addEventListener('input', () => {
+  speed = parseInt(speedSlider.value);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); toggleRun(); }
+  else if (e.key === 's' || e.key === 'S') singleStep();
+  else if (e.key === 'e' || e.key === 'E') { showEntropy = !showEntropy; entropyBtn.classList.toggle('active', showEntropy); render(); }
+  else if (e.key === 'p' || e.key === 'P') exportPNG();
+  else if (e.key === 'h' || e.key === 'H') helpOverlay.classList.toggle('visible');
+  else if (e.key === 'Escape') helpOverlay.classList.remove('visible');
+  else if (e.key >= '1' && e.key <= '6') {
+    const sets = Object.keys(TILESETS);
+    const idx = parseInt(e.key) - 1;
+    if (idx < sets.length) {
+      currentTileset = sets[idx];
+      tilesetSelect.value = currentTileset;
+      running = false;
+      runBtn.textContent = '▶ Generate';
+      initWFC();
+      updateLegend();
+    }
+  }
+});
+
+function updateLegend() {
+  const ts = TILESETS[currentTileset];
+  let html = `<strong style="color:#FFE9A3">${ts.name}</strong><br>`;
+  html += `${ts.tiles.length} tile types<br>`;
+  html += `<span class="key" style="background:rgba(229,89,28,0.4)"></span> Latest collapse<br>`;
+  html += `<span class="key" style="background:rgba(221,193,101,0.15)"></span> Superposition`;
+  legendEl.innerHTML = html;
+}
+
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  render();
+});
+
+// --- Init ---
+resizeCanvas();
+updateLegend();
+// Auto-generate on load for immediate visual impact
+setTimeout(() => startGeneration(), 300);
+</script>
+</body>
+</html>
